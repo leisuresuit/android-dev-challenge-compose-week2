@@ -16,6 +16,7 @@
 package com.example.androiddevchallenge
 
 import android.content.res.Configuration
+import android.content.res.Resources
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,8 +34,10 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.example.androiddevchallenge.ui.theme.MyTheme
 
 const val MAX_DIGITS_LEN = 6
@@ -83,7 +86,9 @@ private fun Portrait(
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
 ) = Column(
-    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+    modifier = Modifier
+        .fillMaxWidth()
+        .fillMaxHeight(),
     verticalArrangement = Arrangement.Center,
     horizontalAlignment = Alignment.CenterHorizontally
 ) {
@@ -94,7 +99,7 @@ private fun Portrait(
         onClearClick,
         onStartClick
     )
-    Spacer(Modifier.height(64.dp))
+    Spacer(Modifier.height(dimensionResource(R.dimen.padding_xlarge)))
     Keypad(
         enabled = secondsRemaining == 0L,
         onClick = onKeypadClick
@@ -112,7 +117,9 @@ private fun Landscape(
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
 ) = Row(
-    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+    modifier = Modifier
+        .fillMaxWidth()
+        .fillMaxHeight(),
     horizontalArrangement = Arrangement.Center,
     verticalAlignment = Alignment.CenterVertically
 ) {
@@ -128,7 +135,7 @@ private fun Landscape(
             onStartClick
         )
     }
-    Spacer(Modifier.width(64.dp))
+    Spacer(Modifier.width(dimensionResource(R.dimen.padding_xlarge)))
     Keypad(
         enabled = secondsRemaining == 0L,
         onClick = onKeypadClick
@@ -146,12 +153,12 @@ private fun TimerDisplay(
 ) {
     CountDown(
         if (secondsRemaining > 0) {
-            getTimeString(secondsRemaining)
+            getTimeString(LocalContext.current.resources, secondsRemaining)
         } else {
-            getTimeString(entryDigits)
+            getTimeString(LocalContext.current.resources, entryDigits)
         }
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(dimensionResource(R.dimen.padding_medium)))
     TimerButtons(
         hasEnteredTime = entryDigits.isNotEmpty(),
         hasRunningTime = secondsRemaining > 0,
@@ -170,35 +177,39 @@ private fun TimerButtons(
     onStartClick: () -> Unit,
 ) {
     Row {
+        val paddingMedium = dimensionResource(R.dimen.padding_medium)
         Button(
             onClick = onClearClick,
             modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .height(36.dp),
+                .padding(horizontal = paddingMedium)
+                .height(dimensionResource(R.dimen.button_height)),
             enabled = hasEnteredTime || hasRunningTime
         ) {
-            Text("Clear")
+            Text(stringResource(R.string.clear))
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(paddingMedium))
         Button(
             onClick = onStartClick,
             modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .height(36.dp),
+                .padding(horizontal = paddingMedium)
+                .height(dimensionResource(R.dimen.button_height)),
             enabled = hasEnteredTime || hasRunningTime
         ) {
             Text(
                 when {
-                    isTimerRunning -> "Pause"
-                    hasRunningTime -> "Resume"
-                    else -> "Start"
+                    isTimerRunning -> stringResource(R.string.pause)
+                    hasRunningTime -> stringResource(R.string.resume)
+                    else -> stringResource(R.string.start)
                 }
             )
         }
     }
 }
 
-private fun getTimeString(time: Long): String {
+private fun getTimeString(
+    resources: Resources,
+    time: Long
+): String {
     var hours = 0L
     var minutes = 0L
     val seconds: Long
@@ -212,21 +223,22 @@ private fun getTimeString(time: Long): String {
         remainder -= minutes * 60
     }
     seconds = remainder
-    return "${pad(hours)}h:${pad(minutes)}m:${pad(seconds)}s"
+    return "${pad(hours)}${resources.getString(R.string.hour_abbrev)}:${pad(minutes)}${resources.getString(R.string.minute_abbrev)}:${pad(seconds)}${resources.getString(R.string.second_abbrev)}"
 }
 
 private fun pad(number: Long) =
     "$number".padStart(2, '0')
 
 private fun getTimeString(
+    resources: Resources,
     digits: List<Int>
 ) = StringBuilder(
     digits.joinToString(separator = "")
         .padStart(MAX_DIGITS_LEN, '0')
 )
-    .append('s')
-    .insert(4, "m:")
-    .insert(2, "h:")
+    .append(resources.getString(R.string.second_abbrev))
+    .insert(4, "${resources.getString(R.string.minute_abbrev)}:")
+    .insert(2, "${resources.getString(R.string.hour_abbrev)}:")
     .toString()
 
 @ExperimentalStdlibApi

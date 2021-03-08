@@ -31,6 +31,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -75,8 +76,10 @@ private fun KeyRow(
     enabled: Boolean,
     onClick: (Int) -> Unit
 ) = Row {
+    val paddingXLarge = dimensionResource(R.dimen.padding_xlarge)
+    val paddingXSmall = dimensionResource(R.dimen.padding_xsmall)
     for (i in 0 until 3 - digits.size) {
-        Spacer(Modifier.width(65.dp))
+        Spacer(Modifier.width(paddingXLarge + paddingXSmall))
     }
     digits.forEach {
         Key(
@@ -86,7 +89,7 @@ private fun KeyRow(
             onClick(it - '0')
         }
         if (it != digits.last()) {
-            Spacer(Modifier.width(1.dp))
+            Spacer(Modifier.width(paddingXSmall))
         }
     }
 }
@@ -96,23 +99,26 @@ private fun Key(
     digit: Char,
     enabled: Boolean,
     onClick: () -> Unit
-) = Button(
-    onClick = onClick,
-    modifier = Modifier.size(64.dp, 64.dp),
-    enabled = enabled,
-    colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.surface),
-    contentPadding = PaddingValues(
-        start = 0.dp,
-        top = 0.dp,
-        end = 0.dp,
-        bottom = 0.dp
-    )
 ) {
-    Text(
-        text = "$digit",
-        fontSize = 36.sp,
-        textAlign = TextAlign.Center
-    )
+    val keypadButtonSize = dimensionResource(R.dimen.keypad_button_size)
+    Button(
+        onClick = onClick,
+        modifier = Modifier.size(keypadButtonSize, keypadButtonSize),
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.surface),
+        contentPadding = PaddingValues(
+            start = 0.dp,
+            top = 0.dp,
+            end = 0.dp,
+            bottom = 0.dp
+        )
+    ) {
+        Text(
+            text = "$digit",
+            fontSize = 36.sp,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @ExperimentalAnimationApi

@@ -29,18 +29,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.example.androiddevchallenge.ui.theme.MyTheme
-
-private const val TIME_FORMAT = "00h:00m:00s"
 
 @ExperimentalAnimationApi
 @Composable
 fun CountDown(
     formattedTime: String
 ) {
-    var rememberedTime by remember { mutableStateOf(TIME_FORMAT) }
+    val timeFormat = "00${stringResource(R.string.hour_abbrev)}:00${stringResource(R.string.minute_abbrev)}:00${stringResource(R.string.second_abbrev)}"
+    var rememberedTime by remember { mutableStateOf(timeFormat) }
     Row {
         FormattedTime(
             formattedTime = formattedTime,
