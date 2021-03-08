@@ -30,7 +30,8 @@ private val DarkColorPalette = darkColors(
 private val LightColorPalette = lightColors(
     primary = blue800,
     primaryVariant = blue500,
-    secondary = teal200
+    secondary = teal200,
+    background = grey100
 )
 
 @Composable

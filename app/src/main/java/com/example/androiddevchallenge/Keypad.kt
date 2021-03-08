@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -99,6 +100,7 @@ private fun Key(
     onClick = onClick,
     modifier = Modifier.size(64.dp, 64.dp),
     enabled = enabled,
+    colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.surface),
     contentPadding = PaddingValues(
         start = 0.dp,
         top = 0.dp,
