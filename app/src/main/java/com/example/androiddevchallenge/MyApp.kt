@@ -16,7 +16,6 @@
 package com.example.androiddevchallenge
 
 import android.content.res.Configuration
-import android.content.res.Resources
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,42 +31,44 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.androiddevchallenge.ui.theme.MyTheme
-
-const val MAX_DIGITS_LEN = 6
 
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
 @Composable
 fun MyApp(
     orientation: Int,
-    entryDigits: List<Int>,
-    secondsRemaining: Long,
-    isTimerRunning: Boolean,
+    timerState: MutableState<CountDownTimerState>,
+    hours: MutableState<Int>,
+    minutes: MutableState<Int>,
+    seconds: MutableState<Int>,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
 ) = Surface(color = MaterialTheme.colors.background) {
     if (orientation == Configuration.ORIENTATION_PORTRAIT) {
         Portrait(
-            entryDigits,
-            secondsRemaining,
-            isTimerRunning,
+            timerState.value,
+            hours = hours.value,
+            minutes = minutes.value,
+            seconds = seconds.value,
             onClearClick,
             onStartClick,
             onKeypadClick
         )
     } else {
         Landscape(
-            entryDigits,
-            secondsRemaining,
-            isTimerRunning,
+            timerState.value,
+            hours = hours.value,
+            minutes = minutes.value,
+            seconds = seconds.value,
             onClearClick,
             onStartClick,
             onKeypadClick
@@ -79,9 +80,10 @@ fun MyApp(
 @ExperimentalAnimationApi
 @Composable
 private fun Portrait(
-    entryDigits: List<Int>,
-    secondsRemaining: Long,
-    isTimerRunning: Boolean,
+    timerState: CountDownTimerState,
+    hours: Int,
+    minutes: Int,
+    seconds: Int,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
@@ -93,26 +95,25 @@ private fun Portrait(
     horizontalAlignment = Alignment.CenterHorizontally
 ) {
     TimerDisplay(
-        entryDigits,
-        secondsRemaining,
-        isTimerRunning,
+        timerState,
+        hours = hours,
+        minutes = minutes,
+        seconds = seconds,
         onClearClick,
         onStartClick
     )
     Spacer(Modifier.height(dimensionResource(R.dimen.padding_xlarge)))
-    Keypad(
-        enabled = secondsRemaining == 0L,
-        onClick = onKeypadClick
-    )
+    TimerKeypad(timerState, onKeypadClick)
 }
 
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
 @Composable
 private fun Landscape(
-    entryDigits: List<Int>,
-    secondsRemaining: Long,
-    isTimerRunning: Boolean,
+    timerState: CountDownTimerState,
+    hours: Int,
+    minutes: Int,
+    seconds: Int,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
@@ -128,41 +129,49 @@ private fun Landscape(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TimerDisplay(
-            entryDigits,
-            secondsRemaining,
-            isTimerRunning,
+            timerState = timerState,
+            hours = hours,
+            minutes = minutes,
+            seconds = seconds,
             onClearClick,
             onStartClick
         )
     }
     Spacer(Modifier.width(dimensionResource(R.dimen.padding_xlarge)))
+    TimerKeypad(timerState, onKeypadClick)
+}
+
+@Composable
+private fun TimerKeypad(
+    timerState: CountDownTimerState,
+    onKeypadClick: (Int) -> Unit = {}
+) {
     Keypad(
-        enabled = secondsRemaining == 0L,
+        enabled = timerState == CountDownTimerState.Stopped,
         onClick = onKeypadClick
     )
 }
 
+@ExperimentalStdlibApi
 @ExperimentalAnimationApi
 @Composable
 private fun TimerDisplay(
-    entryDigits: List<Int>,
-    secondsRemaining: Long,
-    isTimerRunning: Boolean,
+    timerState: CountDownTimerState,
+    hours: Int,
+    minutes: Int,
+    seconds: Int,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {}
 ) {
     CountDown(
-        if (secondsRemaining > 0) {
-            getTimeString(LocalContext.current.resources, secondsRemaining)
-        } else {
-            getTimeString(LocalContext.current.resources, entryDigits)
-        }
+        hours = hours,
+        minutes = minutes,
+        seconds = seconds
     )
     Spacer(Modifier.height(dimensionResource(R.dimen.padding_medium)))
     TimerButtons(
-        hasEnteredTime = entryDigits.isNotEmpty(),
-        hasRunningTime = secondsRemaining > 0,
-        isTimerRunning = isTimerRunning,
+        timerState = timerState,
+        hasTime = hours > 0 || minutes > 0 || seconds > 0,
         onClearClick = onClearClick,
         onStartClick = onStartClick
     )
@@ -170,9 +179,8 @@ private fun TimerDisplay(
 
 @Composable
 private fun TimerButtons(
-    hasEnteredTime: Boolean,
-    hasRunningTime: Boolean,
-    isTimerRunning: Boolean,
+    timerState: CountDownTimerState,
+    hasTime: Boolean,
     onClearClick: () -> Unit,
     onStartClick: () -> Unit,
 ) {
@@ -183,7 +191,7 @@ private fun TimerButtons(
             modifier = Modifier
                 .padding(horizontal = paddingMedium)
                 .height(dimensionResource(R.dimen.button_height)),
-            enabled = hasEnteredTime || hasRunningTime
+            enabled = hasTime
         ) {
             Text(stringResource(R.string.clear))
         }
@@ -193,53 +201,18 @@ private fun TimerButtons(
             modifier = Modifier
                 .padding(horizontal = paddingMedium)
                 .height(dimensionResource(R.dimen.button_height)),
-            enabled = hasEnteredTime || hasRunningTime
+            enabled = hasTime
         ) {
             Text(
-                when {
-                    isTimerRunning -> stringResource(R.string.pause)
-                    hasRunningTime -> stringResource(R.string.resume)
-                    else -> stringResource(R.string.start)
+                when (timerState) {
+                    CountDownTimerState.Running -> stringResource(R.string.pause)
+                    CountDownTimerState.Paused -> stringResource(R.string.resume)
+                    CountDownTimerState.Stopped -> stringResource(R.string.start)
                 }
             )
         }
     }
 }
-
-private fun getTimeString(
-    resources: Resources,
-    time: Long
-): String {
-    var hours = 0L
-    var minutes = 0L
-    val seconds: Long
-    var remainder = time
-    if (remainder >= 3600) {
-        hours = remainder / 3600
-        remainder -= hours * 3600
-    }
-    if (remainder >= 60) {
-        minutes = remainder / 60
-        remainder -= minutes * 60
-    }
-    seconds = remainder
-    return "${pad(hours)}${resources.getString(R.string.hour_abbrev)}:${pad(minutes)}${resources.getString(R.string.minute_abbrev)}:${pad(seconds)}${resources.getString(R.string.second_abbrev)}"
-}
-
-private fun pad(number: Long) =
-    "$number".padStart(2, '0')
-
-private fun getTimeString(
-    resources: Resources,
-    digits: List<Int>
-) = StringBuilder(
-    digits.joinToString(separator = "")
-        .padStart(MAX_DIGITS_LEN, '0')
-)
-    .append(resources.getString(R.string.second_abbrev))
-    .insert(4, "${resources.getString(R.string.minute_abbrev)}:")
-    .insert(2, "${resources.getString(R.string.hour_abbrev)}:")
-    .toString()
 
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
@@ -249,9 +222,10 @@ fun LightPreview() {
     MyTheme {
         MyApp(
             orientation = Configuration.ORIENTATION_PORTRAIT,
-            entryDigits = listOf(),
-            secondsRemaining = 3600,
-            isTimerRunning = true
+            timerState = mutableStateOf(CountDownTimerState.Running),
+            hours = mutableStateOf(12),
+            minutes = mutableStateOf(34),
+            seconds = mutableStateOf(56)
         )
     }
 }
@@ -264,9 +238,10 @@ fun DarkPreview() {
     MyTheme(darkTheme = true) {
         MyApp(
             orientation = Configuration.ORIENTATION_PORTRAIT,
-            entryDigits = listOf(),
-            secondsRemaining = 3600,
-            isTimerRunning = true
+            timerState = mutableStateOf(CountDownTimerState.Running),
+            hours = mutableStateOf(12),
+            minutes = mutableStateOf(34),
+            seconds = mutableStateOf(56)
         )
     }
 }
@@ -279,9 +254,10 @@ fun LandscapePreview() {
     MyTheme {
         MyApp(
             orientation = Configuration.ORIENTATION_LANDSCAPE,
-            entryDigits = listOf(),
-            secondsRemaining = 3600,
-            isTimerRunning = true
+            timerState = mutableStateOf(CountDownTimerState.Running),
+            hours = mutableStateOf(12),
+            minutes = mutableStateOf(34),
+            seconds = mutableStateOf(56)
         )
     }
 }

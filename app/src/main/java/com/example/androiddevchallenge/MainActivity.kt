@@ -20,7 +20,6 @@ import android.os.CountDownTimer
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import com.example.androiddevchallenge.ui.theme.MyTheme
 
@@ -29,26 +28,30 @@ private const val COUNTDOWN_INTERVAL = 1000L
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
 class MainActivity : AppCompatActivity() {
-    private val secondsRemaining = mutableStateOf<Long>(0)
-    private val entryDigits = mutableStateListOf<Int>()
-    private val timer = mutableStateOf<CountDownTimer?>(null)
+    private val timerState = mutableStateOf(CountDownTimerState.Stopped)
+    private val hours = mutableStateOf(0)
+    private val minutes = mutableStateOf(0)
+    private val seconds = mutableStateOf(0)
+    private val entryDigits = mutableListOf<Int>()
+    private var timer: CountDownTimer? = null
     private companion object {
-        const val SECONDS_REMAINING = "seconds_remaining"
-        const val ENTRY_DIGITS = "entry_digits"
-        const val IS_TIMER_RUNNING = "is_timer_running"
+        const val MAX_DIGITS_LEN = 6
+        const val TIME_REMAINING = "time_remaining"
+        const val TIMER_STATE = "timer_state"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         savedInstanceState?.run {
-            secondsRemaining.value = getLong(SECONDS_REMAINING).also {
-                if (it > 0 && getBoolean(IS_TIMER_RUNNING)) {
-                    startTimer(it)
+            @Suppress("UNCHECKED_CAST")
+            (getSerializable(TIME_REMAINING) as? Triple<Int, Int, Int>)?.let {
+                hours.value = it.first
+                minutes.value = it.second
+                seconds.value = it.third
+                if (getSerializable(TIMER_STATE) == CountDownTimerState.Running) {
+                    startTimer()
                 }
-            }
-            getIntArray(ENTRY_DIGITS)?.forEach {
-                entryDigits.add(it)
             }
         }
 
@@ -56,9 +59,10 @@ class MainActivity : AppCompatActivity() {
             MyTheme {
                 MyApp(
                     orientation = resources.configuration.orientation,
-                    entryDigits = entryDigits,
-                    secondsRemaining = secondsRemaining.value,
-                    isTimerRunning = timer.value != null,
+                    timerState = timerState,
+                    hours = hours,
+                    minutes = minutes,
+                    seconds = seconds,
                     onClearClick = ::onClearClick,
                     onStartClick = ::onStartClick,
                     onKeypadClick = ::onKeypadClick
@@ -71,34 +75,38 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
 
         with(outState) {
-            putLong(SECONDS_REMAINING, secondsRemaining.value)
-            putIntArray(ENTRY_DIGITS, entryDigits.toIntArray())
-            putBoolean(IS_TIMER_RUNNING, timer.value != null)
+            putSerializable(TIME_REMAINING, Triple(hours.value, minutes.value, seconds.value))
+            putSerializable(TIMER_STATE, timerState.value)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
-        timer.value?.cancel()
+        timer?.cancel()
     }
 
     private fun onClearClick() {
-        timer.value?.cancel()
-        timer.value = null
-        secondsRemaining.value = 0
+        timer?.cancel()
+        resetState()
+    }
+
+    private fun resetState() {
+        timer = null
+        hours.value = 0
+        minutes.value = 0
+        seconds.value = 0
+        timerState.value = CountDownTimerState.Stopped
         entryDigits.clear()
     }
 
     private fun onStartClick() {
-        timer.value?.let {
+        timer?.let {
             it.cancel()
-            timer.value = null
+            timer = null
+            timerState.value = CountDownTimerState.Paused
         } ?: run {
-            if (secondsRemaining.value == 0L) {
-                secondsRemaining.value = updateSecondsRemaining()
-            }
-            startTimer(secondsRemaining.value)
+            startTimer()
         }
     }
 
@@ -110,37 +118,52 @@ class MainActivity : AppCompatActivity() {
         ) {
             entryDigits.add(key)
         }
+        updateCountDownTime(entryDigits)
     }
 
-    private fun updateSecondsRemaining() =
-        getTimeValues(entryDigits).run {
-            (first + second + third).toLong()
-        }
-
-    private fun getTimeValues(digits: List<Int>) =
+    /**
+     * Updates the countdown time from user entry
+     */
+    private fun updateCountDownTime(digits: List<Int>) {
         digits.asReversed().let {
-            Triple(
-                getValue(digits = it, fromIndex = 0),
-                60 * getValue(digits = it, fromIndex = 2),
-                3600 * getValue(digits = it, fromIndex = 4),
-            )
+            seconds.value = getValue(digits = it, fromIndex = 0)
+            minutes.value = getValue(digits = it, fromIndex = 2)
+            hours.value = getValue(digits = it, fromIndex = 4)
         }
+    }
+
+    /**
+     * Updates the countdown time from the timer
+     */
+    private fun updateCountDownTime(millis: Long) {
+        (millis / 1000).toInt().let {
+            hours.value = (it / 3600)
+            minutes.value = ((it % 3600) / 60)
+            seconds.value = it - (3600 * hours.value + 60 * minutes.value)
+        }
+    }
 
     private fun getValue(
         digits: List<Int>,
         fromIndex: Int
     ) = digits.getOrElse(fromIndex) { 0 } + 10 * digits.getOrElse(fromIndex + 1) { 0 }
 
-    private fun startTimer(startTime: Long) {
-        secondsRemaining.value = startTime
-        timer.value = object : CountDownTimer(secondsRemaining.value * 1000, COUNTDOWN_INTERVAL) {
+    private fun getCountDownTimeMillis(
+        hours: Int,
+        minutes: Int,
+        seconds: Int
+    ) = (3600 * hours + 60 * minutes + seconds) * 1000L
+
+    private fun startTimer() {
+        val millis = getCountDownTimeMillis(hours.value, minutes.value, seconds.value)
+        timer = object : CountDownTimer(millis, COUNTDOWN_INTERVAL) {
             override fun onTick(millisUntilFinished: Long) {
-                secondsRemaining.value = millisUntilFinished / 1000
+                updateCountDownTime(millisUntilFinished)
+                timerState.value = CountDownTimerState.Running
             }
 
             override fun onFinish() {
-                secondsRemaining.value = 0
-                timer.value = null
+                resetState()
             }
         }.start()
     }
