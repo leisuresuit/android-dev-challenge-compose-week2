@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private var timer: CountDownTimer? = null
     private companion object {
         const val MAX_DIGITS_LEN = 6
+        const val LAST_TIMESTAMP = "last_timestamp"
         const val TIME_REMAINING = "time_remaining"
         const val TIMER_STATE = "timer_state"
     }
@@ -46,11 +47,20 @@ class MainActivity : AppCompatActivity() {
         savedInstanceState?.run {
             @Suppress("UNCHECKED_CAST")
             (getSerializable(TIME_REMAINING) as? Triple<Int, Int, Int>)?.let {
-                hours.value = it.first
-                minutes.value = it.second
-                seconds.value = it.third
-                if (getSerializable(TIMER_STATE) == CountDownTimerState.Running) {
-                    startTimer()
+                val millisRemaining = getCountDownTimeMillis(
+                    hours = it.first,
+                    minutes = it.second,
+                    seconds = it.third
+                )
+                if (millisRemaining > 0) {
+                    if (getSerializable(TIMER_STATE) == CountDownTimerState.Running) {
+                        // Subtract the time when the activity was destroyed and re-created.
+                        val timeDelta = System.currentTimeMillis() - getLong(LAST_TIMESTAMP)
+                        updateCountDownTime(millisRemaining - timeDelta)
+                        startTimer()
+                    } else {
+                        updateCountDownTime(millisRemaining)
+                    }
                 }
             }
         }
@@ -77,6 +87,9 @@ class MainActivity : AppCompatActivity() {
         with(outState) {
             putSerializable(TIME_REMAINING, Triple(hours.value, minutes.value, seconds.value))
             putSerializable(TIMER_STATE, timerState.value)
+            if (timerState.value == CountDownTimerState.Running) {
+                putLong(LAST_TIMESTAMP, System.currentTimeMillis())
+            }
         }
     }
 
