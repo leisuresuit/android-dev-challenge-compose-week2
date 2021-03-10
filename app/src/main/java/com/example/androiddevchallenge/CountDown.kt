@@ -29,7 +29,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.example.androiddevchallenge.ui.theme.MyTheme
@@ -43,44 +45,28 @@ fun CountDown(
     seconds: Int,
 ) {
     var rememberedTime by remember { mutableStateOf(Triple(0, 0, 0)) }
-    Row {
-        FormattedTime(
-            hours = hours,
-            minutes = minutes,
-            seconds = seconds,
-            rememberedTime
+    Row(
+        modifier = Modifier.semantics(mergeDescendants = true) {}
+    ) {
+        AnimatedDigitPair(
+            value = hours,
+            rememberedValue = rememberedTime.first
         )
+        TimeUnitText(stringResource(R.string.hour_abbrev))
+        DigitText(':')
+        AnimatedDigitPair(
+            value = minutes,
+            rememberedValue = rememberedTime.second
+        )
+        TimeUnitText(stringResource(R.string.minute_abbrev))
+        DigitText(':')
+        AnimatedDigitPair(
+            value = seconds,
+            rememberedValue = rememberedTime.third
+        )
+        TimeUnitText(stringResource(R.string.second_abbrev))
         rememberedTime = Triple(hours, minutes, seconds)
     }
-}
-
-@ExperimentalAnimationApi
-@ExperimentalStdlibApi
-@Composable
-private fun FormattedTime(
-    hours: Int,
-    minutes: Int,
-    seconds: Int,
-    rememberedTime: Triple<Int, Int, Int>
-) {
-    // Format: 00h:00m:00s
-    AnimatedDigitPair(
-        value = hours,
-        rememberedValue = rememberedTime.first
-    )
-    TimeUnitText(stringResource(R.string.hour_abbrev))
-    DigitText(':')
-    AnimatedDigitPair(
-        value = minutes,
-        rememberedValue = rememberedTime.second
-    )
-    TimeUnitText(stringResource(R.string.minute_abbrev))
-    DigitText(':')
-    AnimatedDigitPair(
-        value = seconds,
-        rememberedValue = rememberedTime.third
-    )
-    TimeUnitText(stringResource(R.string.second_abbrev))
 }
 
 @ExperimentalStdlibApi

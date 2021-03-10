@@ -31,10 +31,9 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,35 +43,45 @@ import com.example.androiddevchallenge.ui.theme.MyTheme
 @ExperimentalAnimationApi
 @Composable
 fun MyApp(
-    orientation: Int,
-    timerState: MutableState<CountDownTimerState>,
-    hours: MutableState<Int>,
-    minutes: MutableState<Int>,
-    seconds: MutableState<Int>,
+    uiState: CountDownUiState,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
-    onKeypadClick: (Int) -> Unit = {}
-) = Surface(color = MaterialTheme.colors.background) {
-    if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-        Portrait(
-            timerState.value,
-            hours = hours.value,
-            minutes = minutes.value,
-            seconds = seconds.value,
-            onClearClick,
-            onStartClick,
-            onKeypadClick
-        )
-    } else {
-        Landscape(
-            timerState.value,
-            hours = hours.value,
-            minutes = minutes.value,
-            seconds = seconds.value,
-            onClearClick,
-            onStartClick,
-            onKeypadClick
-        )
+    orientation: Int = LocalConfiguration.current.orientation
+) {
+    Surface(color = MaterialTheme.colors.background) {
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            Portrait(
+                uiState = uiState,
+                onClearClick = onClearClick,
+                onStartClick = onStartClick,
+                onKeypadClick = { updateCountDownTime(uiState, it) }
+            )
+        } else {
+            Landscape(
+                uiState = uiState,
+                onClearClick = onClearClick,
+                onStartClick = onStartClick,
+                onKeypadClick = { updateCountDownTime(uiState, it) }
+            )
+        }
+    }
+}
+
+private fun updateCountDownTime(uiState: CountDownUiState, key: Int) {
+    with(uiState) {
+        if (key < 0 || key > 9) {
+            // Remove the last digit.
+            // Shift the digits to the right.
+            seconds.value = (minutes.value % 10) * 10 + (seconds.value / 10)
+            minutes.value = (hours.value % 10) * 10 + (minutes.value / 10)
+            hours.value = hours.value / 10
+        } else if (uiState.hours.value / 10 == 0) {
+            // Add the digit at the end.
+            // Shift the digits to the left.
+            hours.value = (hours.value % 10) * 10 + (minutes.value / 10)
+            minutes.value = (minutes.value % 10) * 10 + (seconds.value / 10)
+            seconds.value = (seconds.value % 10) * 10 + key
+        }
     }
 }
 
@@ -80,10 +89,7 @@ fun MyApp(
 @ExperimentalAnimationApi
 @Composable
 private fun Portrait(
-    timerState: CountDownTimerState,
-    hours: Int,
-    minutes: Int,
-    seconds: Int,
+    uiState: CountDownUiState,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
@@ -94,26 +100,25 @@ private fun Portrait(
     verticalArrangement = Arrangement.Center,
     horizontalAlignment = Alignment.CenterHorizontally
 ) {
-    TimerDisplay(
-        timerState,
-        hours = hours,
-        minutes = minutes,
-        seconds = seconds,
-        onClearClick,
-        onStartClick
-    )
+    with(uiState) {
+        TimerDisplay(
+            timerState.value,
+            hours = hours.value,
+            minutes = minutes.value,
+            seconds = seconds.value,
+            onClearClick,
+            onStartClick
+        )
+    }
     Spacer(Modifier.height(dimensionResource(R.dimen.padding_xlarge)))
-    TimerKeypad(timerState, onKeypadClick)
+    TimerKeypad(uiState.timerState.value, onKeypadClick)
 }
 
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
 @Composable
 private fun Landscape(
-    timerState: CountDownTimerState,
-    hours: Int,
-    minutes: Int,
-    seconds: Int,
+    uiState: CountDownUiState,
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
@@ -128,17 +133,19 @@ private fun Landscape(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        TimerDisplay(
-            timerState = timerState,
-            hours = hours,
-            minutes = minutes,
-            seconds = seconds,
-            onClearClick,
-            onStartClick
-        )
+        with(uiState) {
+            TimerDisplay(
+                timerState.value,
+                hours = hours.value,
+                minutes = minutes.value,
+                seconds = seconds.value,
+                onClearClick,
+                onStartClick
+            )
+        }
     }
     Spacer(Modifier.width(dimensionResource(R.dimen.padding_xlarge)))
-    TimerKeypad(timerState, onKeypadClick)
+    TimerKeypad(uiState.timerState.value, onKeypadClick)
 }
 
 @Composable
@@ -222,10 +229,12 @@ fun LightPreview() {
     MyTheme {
         MyApp(
             orientation = Configuration.ORIENTATION_PORTRAIT,
-            timerState = mutableStateOf(CountDownTimerState.Running),
-            hours = mutableStateOf(12),
-            minutes = mutableStateOf(34),
-            seconds = mutableStateOf(56)
+            uiState = CountDownUiState(
+                hours = 12,
+                minutes = 34,
+                seconds = 56,
+                timerState = CountDownTimerState.Running
+            )
         )
     }
 }
@@ -237,11 +246,13 @@ fun LightPreview() {
 fun DarkPreview() {
     MyTheme(darkTheme = true) {
         MyApp(
+            uiState = CountDownUiState(
+                hours = 12,
+                minutes = 34,
+                seconds = 56,
+                timerState = CountDownTimerState.Running
+            ),
             orientation = Configuration.ORIENTATION_PORTRAIT,
-            timerState = mutableStateOf(CountDownTimerState.Running),
-            hours = mutableStateOf(12),
-            minutes = mutableStateOf(34),
-            seconds = mutableStateOf(56)
         )
     }
 }
@@ -253,11 +264,13 @@ fun DarkPreview() {
 fun LandscapePreview() {
     MyTheme {
         MyApp(
+            uiState = CountDownUiState(
+                hours = 12,
+                minutes = 34,
+                seconds = 56,
+                timerState = CountDownTimerState.Running
+            ),
             orientation = Configuration.ORIENTATION_LANDSCAPE,
-            timerState = mutableStateOf(CountDownTimerState.Running),
-            hours = mutableStateOf(12),
-            minutes = mutableStateOf(34),
-            seconds = mutableStateOf(56)
         )
     }
 }

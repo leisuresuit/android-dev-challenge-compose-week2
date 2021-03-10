@@ -20,7 +20,6 @@ import android.os.CountDownTimer
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.runtime.mutableStateOf
 import com.example.androiddevchallenge.ui.theme.MyTheme
 
 private const val COUNTDOWN_INTERVAL = 1000L
@@ -28,54 +27,28 @@ private const val COUNTDOWN_INTERVAL = 1000L
 @ExperimentalStdlibApi
 @ExperimentalAnimationApi
 class MainActivity : AppCompatActivity() {
-    private val timerState = mutableStateOf(CountDownTimerState.Stopped)
-    private val hours = mutableStateOf(0)
-    private val minutes = mutableStateOf(0)
-    private val seconds = mutableStateOf(0)
-    private val entryDigits = mutableListOf<Int>()
+    private val uiState = CountDownUiState()
     private var timer: CountDownTimer? = null
     private companion object {
-        const val MAX_DIGITS_LEN = 6
+        const val HOURS = "hours"
+        const val MINUTES = "minutes"
+        const val SECONDS = "seconds"
         const val LAST_TIMESTAMP = "last_timestamp"
-        const val TIME_REMAINING = "time_remaining"
-        const val TIMER_STATE = "timer_state"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        savedInstanceState?.run {
-            @Suppress("UNCHECKED_CAST")
-            (getSerializable(TIME_REMAINING) as? Triple<Int, Int, Int>)?.let {
-                val millisRemaining = getCountDownTimeMillis(
-                    hours = it.first,
-                    minutes = it.second,
-                    seconds = it.third
-                )
-                if (millisRemaining > 0) {
-                    if (getSerializable(TIMER_STATE) == CountDownTimerState.Running) {
-                        // Subtract the time when the activity was destroyed and re-created.
-                        val timeDelta = System.currentTimeMillis() - getLong(LAST_TIMESTAMP)
-                        updateCountDownTime(millisRemaining - timeDelta)
-                        startTimer()
-                    } else {
-                        updateCountDownTime(millisRemaining)
-                    }
-                }
-            }
+        savedInstanceState?.let {
+            resumeTimer(it)
         }
 
         setContent {
             MyTheme {
                 MyApp(
-                    orientation = resources.configuration.orientation,
-                    timerState = timerState,
-                    hours = hours,
-                    minutes = minutes,
-                    seconds = seconds,
+                    uiState = uiState,
                     onClearClick = ::onClearClick,
-                    onStartClick = ::onStartClick,
-                    onKeypadClick = ::onKeypadClick
+                    onStartClick = ::onStartClick
                 )
             }
         }
@@ -85,9 +58,10 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
 
         with(outState) {
-            putSerializable(TIME_REMAINING, Triple(hours.value, minutes.value, seconds.value))
-            putSerializable(TIMER_STATE, timerState.value)
-            if (timerState.value == CountDownTimerState.Running) {
+            putInt(HOURS, uiState.hours.value)
+            putInt(MINUTES, uiState.minutes.value)
+            putInt(SECONDS, uiState.seconds.value)
+            if (uiState.timerState.value == CountDownTimerState.Running) {
                 putLong(LAST_TIMESTAMP, System.currentTimeMillis())
             }
         }
@@ -99,6 +73,27 @@ class MainActivity : AppCompatActivity() {
         timer?.cancel()
     }
 
+    private fun resumeTimer(savedInstanceState: Bundle) {
+        with(savedInstanceState) {
+            with(uiState) {
+                val millisRemaining = getCountDownTimeMillis(
+                    hours = getInt(HOURS).also { hours.value = it },
+                    minutes = getInt(MINUTES).also { minutes.value = it },
+                    seconds = getInt(SECONDS).also { seconds.value = it }
+                )
+                if (millisRemaining > 0) {
+                    // Subtract the time when the activity was destroyed and re-created.
+                    val lastTimeStamp = getLong(LAST_TIMESTAMP)
+                    if (lastTimeStamp > 0) {
+                        val timeDelta = System.currentTimeMillis() - lastTimeStamp
+                        updateCountDownTime(millisRemaining - timeDelta)
+                        startTimer()
+                    }
+                }
+            }
+        }
+    }
+
     private fun onClearClick() {
         timer?.cancel()
         resetState()
@@ -106,42 +101,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun resetState() {
         timer = null
-        hours.value = 0
-        minutes.value = 0
-        seconds.value = 0
-        timerState.value = CountDownTimerState.Stopped
-        entryDigits.clear()
+        with(uiState) {
+            hours.value = 0
+            minutes.value = 0
+            seconds.value = 0
+            timerState.value = CountDownTimerState.Stopped
+        }
     }
 
     private fun onStartClick() {
         timer?.let {
             it.cancel()
             timer = null
-            timerState.value = CountDownTimerState.Paused
+            uiState.timerState.value = CountDownTimerState.Paused
         } ?: run {
             startTimer()
-        }
-    }
-
-    private fun onKeypadClick(key: Int) {
-        if (key < 0 || key > 9) {
-            entryDigits.removeLastOrNull()
-        } else if (entryDigits.size < MAX_DIGITS_LEN &&
-            (entryDigits.isNotEmpty() || key != 0)
-        ) {
-            entryDigits.add(key)
-        }
-        updateCountDownTime(entryDigits)
-    }
-
-    /**
-     * Updates the countdown time from user entry
-     */
-    private fun updateCountDownTime(digits: List<Int>) {
-        digits.asReversed().let {
-            seconds.value = getValue(digits = it, fromIndex = 0)
-            minutes.value = getValue(digits = it, fromIndex = 2)
-            hours.value = getValue(digits = it, fromIndex = 4)
         }
     }
 
@@ -150,16 +124,13 @@ class MainActivity : AppCompatActivity() {
      */
     private fun updateCountDownTime(millis: Long) {
         (millis / 1000).toInt().let {
-            hours.value = (it / 3600)
-            minutes.value = ((it % 3600) / 60)
-            seconds.value = it - (3600 * hours.value + 60 * minutes.value)
+            with(uiState) {
+                hours.value = (it / 3600)
+                minutes.value = ((it % 3600) / 60)
+                seconds.value = it - (3600 * hours.value + 60 * minutes.value)
+            }
         }
     }
-
-    private fun getValue(
-        digits: List<Int>,
-        fromIndex: Int
-    ) = digits.getOrElse(fromIndex) { 0 } + 10 * digits.getOrElse(fromIndex + 1) { 0 }
 
     private fun getCountDownTimeMillis(
         hours: Int,
@@ -168,11 +139,13 @@ class MainActivity : AppCompatActivity() {
     ) = (3600 * hours + 60 * minutes + seconds) * 1000L
 
     private fun startTimer() {
-        val millis = getCountDownTimeMillis(hours.value, minutes.value, seconds.value)
+        val millis = with(uiState) {
+            getCountDownTimeMillis(hours.value, minutes.value, seconds.value)
+        }
         timer = object : CountDownTimer(millis, COUNTDOWN_INTERVAL) {
             override fun onTick(millisUntilFinished: Long) {
                 updateCountDownTime(millisUntilFinished)
-                timerState.value = CountDownTimerState.Running
+                uiState.timerState.value = CountDownTimerState.Running
             }
 
             override fun onFinish() {
