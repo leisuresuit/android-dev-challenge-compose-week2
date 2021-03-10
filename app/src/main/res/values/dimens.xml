@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="padding_medium">16dp</dimen>
     <dimen name="padding_xlarge">64dp</dimen>
+    <dimen name="padding_medium">16dp</dimen>
     <dimen name="padding_xsmall">1dp</dimen>
     <dimen name="button_height">36dp</dimen>
     <dimen name="keypad_button_size">64dp</dimen>

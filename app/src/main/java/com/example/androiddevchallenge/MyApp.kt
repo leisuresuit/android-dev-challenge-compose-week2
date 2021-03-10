@@ -19,12 +19,12 @@ import android.content.res.Configuration
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -93,25 +93,19 @@ private fun Portrait(
     onClearClick: () -> Unit = {},
     onStartClick: () -> Unit = {},
     onKeypadClick: (Int) -> Unit = {}
-) = Column(
+) = TimerDisplay(
     modifier = Modifier
         .fillMaxWidth()
         .fillMaxHeight(),
-    verticalArrangement = Arrangement.Center,
-    horizontalAlignment = Alignment.CenterHorizontally
+    uiState = uiState,
+    onClearClick = onClearClick,
+    onStartClick = onStartClick
 ) {
-    with(uiState) {
-        TimerDisplay(
-            timerState.value,
-            hours = hours.value,
-            minutes = minutes.value,
-            seconds = seconds.value,
-            onClearClick,
-            onStartClick
-        )
-    }
     Spacer(Modifier.height(dimensionResource(R.dimen.padding_xlarge)))
-    TimerKeypad(uiState.timerState.value, onKeypadClick)
+    TimerKeypad(
+        timerState = uiState.timerState.value,
+        onKeypadClick = onKeypadClick
+    )
 }
 
 @ExperimentalStdlibApi
@@ -127,25 +121,18 @@ private fun Landscape(
         .fillMaxWidth()
         .fillMaxHeight(),
     horizontalArrangement = Arrangement.Center,
-    verticalAlignment = Alignment.CenterVertically
+    verticalAlignment = Alignment.CenterVertically,
 ) {
-    Column(
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        with(uiState) {
-            TimerDisplay(
-                timerState.value,
-                hours = hours.value,
-                minutes = minutes.value,
-                seconds = seconds.value,
-                onClearClick,
-                onStartClick
-            )
-        }
-    }
+    TimerDisplay(
+        uiState = uiState,
+        onClearClick = onClearClick,
+        onStartClick = onStartClick
+    )
     Spacer(Modifier.width(dimensionResource(R.dimen.padding_xlarge)))
-    TimerKeypad(uiState.timerState.value, onKeypadClick)
+    TimerKeypad(
+        timerState = uiState.timerState.value,
+        onKeypadClick = onKeypadClick
+    )
 }
 
 @Composable
@@ -163,25 +150,33 @@ private fun TimerKeypad(
 @ExperimentalAnimationApi
 @Composable
 private fun TimerDisplay(
-    timerState: CountDownTimerState,
-    hours: Int,
-    minutes: Int,
-    seconds: Int,
+    modifier: Modifier = Modifier,
+    uiState: CountDownUiState,
     onClearClick: () -> Unit = {},
-    onStartClick: () -> Unit = {}
+    onStartClick: () -> Unit = {},
+    additionalContent: @Composable ColumnScope.() -> Unit = {}
 ) {
-    CountDown(
-        hours = hours,
-        minutes = minutes,
-        seconds = seconds
-    )
-    Spacer(Modifier.height(dimensionResource(R.dimen.padding_medium)))
-    TimerButtons(
-        timerState = timerState,
-        hasTime = hours > 0 || minutes > 0 || seconds > 0,
-        onClearClick = onClearClick,
-        onStartClick = onStartClick
-    )
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        with(uiState) {
+            CountDown(
+                hours = hours.value,
+                minutes = minutes.value,
+                seconds = seconds.value
+            )
+            Spacer(Modifier.height(dimensionResource(R.dimen.padding_medium)))
+            TimerButtons(
+                timerState = timerState.value,
+                hasTime = hours.value > 0 || minutes.value > 0 || seconds.value > 0,
+                onClearClick = onClearClick,
+                onStartClick = onStartClick
+            )
+        }
+        additionalContent()
+    }
 }
 
 @Composable
@@ -195,19 +190,15 @@ private fun TimerButtons(
         val paddingMedium = dimensionResource(R.dimen.padding_medium)
         Button(
             onClick = onClearClick,
-            modifier = Modifier
-                .padding(horizontal = paddingMedium)
-                .height(dimensionResource(R.dimen.button_height)),
+            modifier = Modifier.height(dimensionResource(R.dimen.button_height)),
             enabled = hasTime
         ) {
             Text(stringResource(R.string.clear))
         }
-        Spacer(Modifier.height(paddingMedium))
+        Spacer(Modifier.width(paddingMedium))
         Button(
             onClick = onStartClick,
-            modifier = Modifier
-                .padding(horizontal = paddingMedium)
-                .height(dimensionResource(R.dimen.button_height)),
+            modifier = Modifier.height(dimensionResource(R.dimen.button_height)),
             enabled = hasTime
         ) {
             Text(
